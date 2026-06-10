@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elena Cebadera | Senior Product Designer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#fff7fb;color:#fff}
+.hero{min-height:100vh;display:flex;align-items:center;padding:0 8%;position:relative;overflow:hidden}
+.hero::before{
+content:"";position:absolute;inset:0;z-index:-1;
+background:
+linear-gradient(90deg,
+rgba(87,24,72,.95) 0%,
+rgba(128,44,102,.88) 30%,
+rgba(213,93,154,.55) 65%,
+rgba(255,191,221,.15) 100%),
+url("elena-cebadera.png");
+background-size:cover;
+background-position:center;
+}
+.hero-content{max-width:760px}
+.eyebrow{display:inline-block;margin-bottom:20px;text-transform:uppercase;letter-spacing:3px;font-size:14px;font-weight:600;color:#ffe3f3}
+h1{font-size:clamp(3.5rem,8vw,7rem);line-height:.92;margin-bottom:24px;font-weight:800;letter-spacing:-3px}
+.subtitle{font-size:clamp(1.15rem,2vw,1.5rem);line-height:1.7;max-width:650px;color:rgba(255,255,255,.92)}
+.highlight{font-weight:700;color:#fff}
+@media(max-width:768px){
+.hero{align-items:flex-end;padding:40px 24px}
+h1{font-size:3.2rem;letter-spacing:-2px}
+}
+</style>
+</head>
+<body>
+<section class="hero">
+<div class="hero-content">
+<span class="eyebrow">Senior Product Designer</span>
+<h1>Hola, soy<br>Elena Cebadera</h1>
+<p class="subtitle">
+Diseño <span class="highlight">productos impulsados por IA</span>,
+combinando estrategia de producto, research y design systems para
+transformar ideas complejas en experiencias intuitivas que generan
+impacto real tanto para negocio como para usuarios.
+</p>
+</div>
+</section>
+</body>
+</html>
