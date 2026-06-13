@@ -158,25 +158,30 @@ h1 {
 
 <script>
 const playas = [
-  {
-    nombre: "Pinedo",
-    lat: 39.4213,
-    lon: -0.3323
-  },
-  {
-    nombre: "La Patacona",
-    lat: 39.4895,
-    lon: -0.3230
-  }
+  { nombre: "Pinedo", lat: 39.4213, lon: -0.3323 },
+  { nombre: "La Patacona", lat: 39.4895, lon: -0.3230 }
 ];
+
+let diaSeleccionado = 0;
+
+async function cambiarDia(dia) {
+  diaSeleccionado = dia;
+
+  document.querySelectorAll(".tab").forEach((tab, index) => {
+    tab.classList.toggle("active", index === dia);
+  });
+
+  document.getElementById("playas").innerHTML =
+    `<div class="loading">Cargando peces... 🐟</div>`;
+
+  iniciar();
+}
 
 function obtenerIndiceHora(times) {
   const ahora = new Date();
   const horaActual = ahora.getHours();
 
-  return times.findIndex(
-    t => new Date(t).getHours() === horaActual
-  );
+  return times.findIndex(t => new Date(t).getHours() === horaActual);
 }
 
 function calcularTendenciaMarea(marine) {
@@ -188,32 +193,20 @@ function calcularTendenciaMarea(marine) {
   const siguiente = niveles[i + 1];
 
   if (actual == null || siguiente == null) {
-    return {
-      tendencia: "Sin dato",
-      diferencia: null
-    };
+    return { tendencia: "Sin dato", diferencia: null };
   }
 
   const diferencia = siguiente - actual;
 
   if (Math.abs(diferencia) < 0.01) {
-    return {
-      tendencia: "Marea casi parada",
-      diferencia
-    };
+    return { tendencia: "Marea casi parada", diferencia };
   }
 
   if (diferencia > 0) {
-    return {
-      tendencia: "Marea subiendo",
-      diferencia
-    };
+    return { tendencia: "Marea subiendo", diferencia };
   }
 
-  return {
-    tendencia: "Marea bajando",
-    diferencia
-  };
+  return { tendencia: "Marea bajando", diferencia };
 }
 
 function calcularTendenciaMareaPorIndice(marine, i) {
@@ -223,32 +216,20 @@ function calcularTendenciaMareaPorIndice(marine, i) {
   const siguiente = niveles[i + 1];
 
   if (actual == null || siguiente == null) {
-    return {
-      tendencia: "Sin dato",
-      diferencia: null
-    };
+    return { tendencia: "Sin dato", diferencia: null };
   }
 
   const diferencia = siguiente - actual;
 
   if (Math.abs(diferencia) < 0.01) {
-    return {
-      tendencia: "Marea casi parada",
-      diferencia
-    };
+    return { tendencia: "Marea casi parada", diferencia };
   }
 
   if (diferencia > 0) {
-    return {
-      tendencia: "Marea subiendo",
-      diferencia
-    };
+    return { tendencia: "Marea subiendo", diferencia };
   }
 
-  return {
-    tendencia: "Marea bajando",
-    diferencia
-  };
+  return { tendencia: "Marea bajando", diferencia };
 }
 
 function calcularPuntos({ hora, viento, temp, ola, agua, marea }) {
@@ -307,16 +288,20 @@ function formatoHora(fecha) {
   });
 }
 
+function fechaSeleccionadaTexto() {
+  return diaSeleccionado === 0 ? "Hoy" : "Mañana";
+}
+
 async function cargarPlaya(playa) {
   const meteoUrl =
     `https://api.open-meteo.com/v1/forecast?latitude=${playa.lat}&longitude=${playa.lon}` +
     `&hourly=temperature_2m,wind_speed_10m` +
-    `&timezone=Europe/Madrid&forecast_days=1`;
+    `&timezone=Europe/Madrid&forecast_days=2`;
 
   const marUrl =
     `https://marine-api.open-meteo.com/v1/marine?latitude=${playa.lat}&longitude=${playa.lon}` +
     `&hourly=wave_height,sea_surface_temperature,sea_level_height_msl` +
-    `&timezone=Europe/Madrid&forecast_days=1`;
+    `&timezone=Europe/Madrid&forecast_days=2`;
 
   const [meteoRes, marRes] = await Promise.all([
     fetch(meteoUrl),
@@ -326,18 +311,24 @@ async function cargarPlaya(playa) {
   const meteo = await meteoRes.json();
   const mar = await marRes.json();
 
-  const horas = meteo.hourly.time;
-  const mareaActual = calcularTendenciaMarea(mar);
+  const fechaObjetivo = new Date();
+  fechaObjetivo.setDate(fechaObjetivo.getDate() + diaSeleccionado);
 
-  const datosHoras = horas.map((hora, i) => {
-    const mareaHora = calcularTendenciaMareaPorIndice(mar, i);
+  const fechaTexto = fechaObjetivo.toISOString().split("T")[0];
+
+  const horasFiltradas = meteo.hourly.time
+    .map((hora, index) => ({ hora, index }))
+    .filter(item => item.hora.startsWith(fechaTexto));
+
+  const datosHoras = horasFiltradas.map(({ hora, index }) => {
+    const mareaHora = calcularTendenciaMareaPorIndice(mar, index);
 
     const dato = {
       hora,
-      temp: meteo.hourly.temperature_2m[i],
-      viento: meteo.hourly.wind_speed_10m[i],
-      ola: mar.hourly.wave_height[i],
-      agua: mar.hourly.sea_surface_temperature[i],
+      temp: meteo.hourly.temperature_2m[index],
+      viento: meteo.hourly.wind_speed_10m[index],
+      ola: mar.hourly.wave_height[index],
+      agua: mar.hourly.sea_surface_temperature[index],
       marea: mareaHora.tendencia,
       diferenciaMarea: mareaHora.diferencia
     };
@@ -351,8 +342,9 @@ async function cargarPlaya(playa) {
   const horaActual = new Date().getHours();
 
   const actual =
-    datosHoras.find(d => new Date(d.hora).getHours() === horaActual) ||
-    datosHoras[0];
+    diaSeleccionado === 0
+      ? datosHoras.find(d => new Date(d.hora).getHours() === horaActual) || datosHoras[0]
+      : datosHoras[6] || datosHoras[0];
 
   const mejoresHoras = [...datosHoras]
     .sort((a, b) => b.score - a.score)
@@ -361,8 +353,7 @@ async function cargarPlaya(playa) {
   return {
     ...playa,
     actual,
-    mejoresHoras,
-    marea: mareaActual
+    mejoresHoras
   };
 }
 
@@ -379,6 +370,10 @@ function pintar(datos) {
     return `
       <div class="card">
         <div class="playa">🏖️ ${playa.nombre}</div>
+
+        <div style="color:#64748b;font-size:14px;margin-top:4px">
+          📅 ${fechaSeleccionadaTexto()}
+        </div>
 
         <div class="peces">${peces(score)}</div>
 
