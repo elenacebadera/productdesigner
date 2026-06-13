@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>¿Pica o no pica?</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #eaf8ff;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  color: #18384f;
+}
+
+h1 {
+  font-size: 34px;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  color: #5f7484;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 22px;
+  padding: 24px;
+  margin: 20px auto;
+  max-width: 430px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.1);
+}
+
+.playa {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.peces {
+  font-size: 38px;
+  margin: 14px 0;
+}
+
+.estado {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.detalle {
+  background: #f3fbff;
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 16px;
+  border-bottom: 1px solid #dcecf5;
+}
+
+.fila:last-child {
+  border-bottom: none;
+}
+
+.horas {
+  margin-top: 18px;
+  text-align: left;
+}
+
+.horas h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.hora {
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-weight: bold;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.leyenda,
+.actualizado,
+.aviso {
+  font-size: 14px;
+  color: #5f7484;
+  margin-top: 24px;
+}
+
+.loading {
+  font-size: 20px;
+  margin-top: 40px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎣 ¿Pica o no pica?</h1>
+<p class="subtitle">Estado rápido de pesca en Pinedo y La Patacona</p>
+
+<div id="playas">
+  <div class="loading">Cargando peces reales... 🐟</div>
+</div>
+
+<div class="leyenda">
+  🐟 = poca cosa · 🐟🐟🐟 = puede pasar algo · 🐟🐟🐟🐟🐟 = cancela los planes
+</div>
+
+<div class="aviso">
+  Índice estimado con datos reales de viento, temperatura, olas, marea y hora del día.
+</div>
+
+<div class="actualizado" id="actualizado"></div>
+
+<script>
+const playas = [
+  {
+    nombre: "Pinedo",
+    lat: 39.4213,
+    lon: -0.3323
+  },
+  {
+    nombre: "La Patacona",
+    lat: 39.4895,
+    lon: -0.3230
+  }
+];
+
+function obtenerIndiceHora(times) {
+  const ahora = new Date();
+  const horaActual = ahora.getHours();
+
+  return times.findIndex(
+    t => new Date(t).getHours() === horaActual
+  );
+}
+
+function calcularTendenciaMarea(marine) {
+  const times = marine.hourly.time || [];
+  const niveles = marine.hourly.sea_level_height_msl || [];
+  const i = obtenerIndiceHora(times);
+
+  const actual = niveles[i];
+  const siguiente = niveles[i + 1];
+
+  if (actual == null || siguiente == null) {
+    return {
+      tendencia: "Sin dato",
+      diferencia: null
+    };
+  }
+
+  const diferencia = siguiente - actual;
+
+  if (Math.abs(diferencia) < 0.01) {
+    return {
+      tendencia: "Marea casi parada",
+      diferencia
+    };
+  }
+
+  if (diferencia > 0) {
+    return {
+      tendencia: "Marea subiendo",
+      diferencia
+    };
+  }
+
+  return {
+    tendencia: "Marea bajando",
+    diferencia
+  };
+}
+
+function calcularTendenciaMareaPorIndice(marine, i) {
+  const niveles = marine.hourly.sea_level_height_msl || [];
+
+  const actual = niveles[i];
+  const siguiente = niveles[i + 1];
+
+  if (actual == null || siguiente == null) {
+    return {
+      tendencia: "Sin dato",
+      diferencia: null
+    };
+  }
+
+  const diferencia = siguiente - actual;
+
+  if (Math.abs(diferencia) < 0.01) {
+    return {
+      tendencia: "Marea casi parada",
+      diferencia
+    };
+  }
+
+  if (diferencia > 0) {
+    return {
+      tendencia: "Marea subiendo",
+      diferencia
+    };
+  }
+
+  return {
+    tendencia: "Marea bajando",
+    diferencia
+  };
+}
+
+function calcularPuntos({ hora, viento, temp, ola, agua, marea }) {
+  let puntos = 0;
+  const h = new Date(hora).getHours();
+
+  if ((h >= 6 && h <= 9) || (h >= 18 && h <= 21)) puntos += 30;
+
+  if (viento >= 5 && viento <= 18) puntos += 20;
+  else if (viento < 25) puntos += 10;
+
+  if (ola >= 0.3 && ola <= 1.0) puntos += 25;
+  else if (ola < 1.5) puntos += 10;
+
+  if (agua >= 16 && agua <= 26) puntos += 15;
+
+  if (temp >= 15 && temp <= 28) puntos += 10;
+
+  if (marea === "Marea subiendo") puntos += 20;
+  if (marea === "Marea bajando") puntos += 10;
+
+  if (viento > 28) puntos -= 25;
+  if (ola > 1.5) puntos -= 25;
+  if (temp < 10) puntos -= 10;
+
+  return Math.max(0, Math.min(100, puntos));
+}
+
+function peces(score) {
+  if (score >= 80) return "🐟🐟🐟🐟🐟";
+  if (score >= 65) return "🐟🐟🐟🐟";
+  if (score >= 45) return "🐟🐟🐟";
+  if (score >= 25) return "🐟🐟";
+  return "🐟";
+}
+
+function frase(score) {
+  if (score >= 80) return "🎣 HOY SE SALE";
+  if (score >= 65) return "🐟 Hay movimiento en la oficina";
+  if (score >= 45) return "🤷 Puede sonar la flauta";
+  if (score >= 25) return "😴 Los peces están de descanso";
+  return "🏖️ Mejor paseo que pesca";
+}
+
+function textoFrio(temp) {
+  if (temp < 10) return "Mucho frío, modo cebolla";
+  if (temp < 16) return "Sí, ponte chaqueta";
+  if (temp < 21) return "Fresquito agradable";
+  return "No hace frío";
+}
+
+function formatoHora(fecha) {
+  return new Date(fecha).toLocaleTimeString("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+async function cargarPlaya(playa) {
+  const meteoUrl =
+    `https://api.open-meteo.com/v1/forecast?latitude=${playa.lat}&longitude=${playa.lon}` +
+    `&hourly=temperature_2m,wind_speed_10m` +
+    `&timezone=Europe/Madrid&forecast_days=1`;
+
+  const marUrl =
+    `https://marine-api.open-meteo.com/v1/marine?latitude=${playa.lat}&longitude=${playa.lon}` +
+    `&hourly=wave_height,sea_surface_temperature,sea_level_height_msl` +
+    `&timezone=Europe/Madrid&forecast_days=1`;
+
+  const [meteoRes, marRes] = await Promise.all([
+    fetch(meteoUrl),
+    fetch(marUrl)
+  ]);
+
+  const meteo = await meteoRes.json();
+  const mar = await marRes.json();
+
+  const horas = meteo.hourly.time;
+  const mareaActual = calcularTendenciaMarea(mar);
+
+  const datosHoras = horas.map((hora, i) => {
+    const mareaHora = calcularTendenciaMareaPorIndice(mar, i);
+
+    const dato = {
+      hora,
+      temp: meteo.hourly.temperature_2m[i],
+      viento: meteo.hourly.wind_speed_10m[i],
+      ola: mar.hourly.wave_height[i],
+      agua: mar.hourly.sea_surface_temperature[i],
+      marea: mareaHora.tendencia,
+      diferenciaMarea: mareaHora.diferencia
+    };
+
+    return {
+      ...dato,
+      score: calcularPuntos(dato)
+    };
+  });
+
+  const horaActual = new Date().getHours();
+
+  const actual =
+    datosHoras.find(d => new Date(d.hora).getHours() === horaActual) ||
+    datosHoras[0];
+
+  const mejoresHoras = [...datosHoras]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2);
+
+  return {
+    ...playa,
+    actual,
+    mejoresHoras,
+    marea: mareaActual
+  };
+}
+
+function pintar(datos) {
+  document.getElementById("playas").innerHTML = datos.map(playa => {
+    const actual = playa.actual;
+    const score = Math.round(actual.score);
+
+    const cambioMarea =
+      actual.diferenciaMarea == null
+        ? "-"
+        : `${actual.diferenciaMarea > 0 ? "+" : ""}${actual.diferenciaMarea.toFixed(2)} m`;
+
+    return `
+      <div class="card">
+        <div class="playa">🏖️ ${playa.nombre}</div>
+
+        <div class="peces">${peces(score)}</div>
+
+        <div class="estado">${frase(score)}</div>
+
+        <p>Índice de pesca: <strong>${score}/100</strong></p>
+
+        <div class="horas">
+          <h3>⏰ Mejores horas</h3>
+          <div class="hora">
+            🌅 ${formatoHora(playa.mejoresHoras[0].hora)} · ${Math.round(playa.mejoresHoras[0].score)}/100
+          </div>
+          <div class="hora">
+            🌇 ${formatoHora(playa.mejoresHoras[1].hora)} · ${Math.round(playa.mejoresHoras[1].score)}/100
+          </div>
+        </div>
+
+        <div class="detalle">
+          <div class="fila">
+            <span>🌊 Marea</span>
+            <strong>${actual.marea}</strong>
+          </div>
+
+          <div class="fila">
+            <span>📈 Cambio próxima hora</span>
+            <strong>${cambioMarea}</strong>
+          </div>
+
+          <div class="fila">
+            <span>🌬️ Viento</span>
+            <strong>${Math.round(actual.viento)} km/h</strong>
+          </div>
+
+          <div class="fila">
+            <span>🌊 Ola</span>
+            <strong>${actual.ola.toFixed(1)} m</strong>
+          </div>
+
+          <div class="fila">
+            <span>🌡️ Temperatura</span>
+            <strong>${Math.round(actual.temp)}°C</strong>
+          </div>
+
+          <div class="fila">
+            <span>🌊 Agua</span>
+            <strong>${Math.round(actual.agua)}°C</strong>
+          </div>
+
+          <div class="fila">
+            <span>🧥 Frío</span>
+            <strong>${textoFrio(actual.temp)}</strong>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("actualizado").innerHTML =
+    "⏱️ Actualizado: " + new Date().toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+}
+
+async function iniciar() {
+  try {
+    const datos = await Promise.all(playas.map(cargarPlaya));
+    pintar(datos);
+  } catch (error) {
+    document.getElementById("playas").innerHTML = `
+      <div class="card">
+        <div class="estado">🐡 Algo ha fallado</div>
+        <p>No se han podido cargar los datos reales.</p>
+        <p>Los peces están, pero la API se ha ido a almorzar.</p>
+      </div>
+    `;
+    console.error(error);
+  }
+}
+
+iniciar();
+</script>
+
+</body>
+</html>
